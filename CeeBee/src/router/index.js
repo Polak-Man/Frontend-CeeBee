@@ -4,8 +4,11 @@ import Callback from '@/components/Callback.vue';  // Créez ce composant
 const routes = [
   // ... autres routes
   {
+    path: '/',
+    redirect: '/callback',
+  },
+  {
     path: '/callback',
-    name: 'Callback',
     component: Callback,
   },
 ];

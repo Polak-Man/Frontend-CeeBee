@@ -1,37 +1,40 @@
 <template>
-  <div class="ceebee-root">
-            <button v-if="!discordUsername" class="btn btn-discord" @click="connectDiscord">Connecter à Discord</button>
-            <button v-else class="btn btn-discord" disabled>Connecté en tant que {{ discordUsername }}</button>
-    <div class="container card">
-      <div class="card-header">
-        <h1 class="card-title">CeeBee</h1>
+  <div class="page-container">
+    <div class="card-wrapper">
+      <div class="user-info">
+        <img :src="avatarUrl" alt="Avatar" class="avatar" />
+        <span class="username">{{ discordUsername }}</span>
       </div>
 
-      <div class="card-body">
-        <input type="file" @change="handleFileUpload" accept="image/*,video/*" class="form-control" />
-        <input type="text" v-model="textInput" placeholder="Saisissez votre texte ici" class="form-control" />
+      <div class="container card">
+        <div class="card-header">
+          <h1 class="card-title">CeeBee</h1>
+        </div>
+        <div class="card-body">
+          <input type="file" @change="handleFileUpload" accept="image/*,video/*" class="form-control" />
+          <input type="text" v-model="textInput" placeholder="Saisissez votre texte ici" class="form-control" />
 
-        <label class="pseudo-label">
-          <input type="checkbox" v-model="showPseudo" />
-          <span>Afficher Pseudo ?</span>
-        </label>
-
-        <div class="checkbox-list">
-          <label v-for="name in names" :key="name">
-            <input type="checkbox" v-model="selectedNames" :value="name" />
-            {{ name }}
+          <label class="pseudo-label">
+            <input type="checkbox" v-model="showPseudo" />
+            <span>Afficher Pseudo ?</span>
           </label>
-        </div>
 
-        <div class="duration-inputs">
-          <input type="number" v-model="durationSec" placeholder="Durée en s" class="form-control" />
-          <input type="number" v-model="durationMs" placeholder="en ms" class="form-control" />
-        </div>
+          <div class="checkbox-list">
+            <label v-for="name in names" :key="name">
+              <input type="checkbox" v-model="selectedNames" :value="name" />
+              {{ name }}
+            </label>
+          </div>
 
-        <div class="actions">
-          <button class="btn btn-primary" @click="submitToBackend">Apply</button>
-          <!--<button class="btn btn-primary" @click="applySettings,submitToBackend">Apply</button>-->
-          <button class="btn btn-ghost" @click="resetForm">Reset</button>
+          <div class="duration-inputs">
+            <input type="number" v-model="durationSec" placeholder="Durée en s" class="form-control" />
+            <input type="number" v-model="durationMs" placeholder="en ms" class="form-control" />
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" @click="submitToBackend">Apply</button>
+            <button class="btn btn-ghost" @click="resetForm">Reset</button>
+          </div>
         </div>
       </div>
     </div>
@@ -46,34 +49,52 @@ export default {
   data() {
     return {
       discordUsername: null,
+      discordEmail: null,
+      discordAvatar: null,
+      discordId: null,
       textInput: '',
       showPseudo: false,
       names: ['Aëlys', 'Alexis', 'Logan', 'Mattéo'],
       selectedNames: [],
       durationSec: null,
       durationMs: null,
-      uploadedFile: null, // ajout de la variable pour garder le fichier
+      uploadedFile: null,
     };
   },
   mounted() {
-    // read discord username from cookie if present
     try {
       this.discordUsername = getCookie('discord_username');
+      this.discordEmail = getCookie('discord_email');
+      this.discordAvatar = getCookie('discord_avatar');
+      this.discordId = getCookie('discord_id');
+      console.log('Discord username : ', this.discordUsername);
+      console.log('Discord ID : ', this.discordId);
+      console.log('Discord Avatar : ', this.discordAvatar);
+      console.log('Discord email : ', this.discordEmail);
     } catch (err) {
       console.warn('Error reading discord cookie', err);
     }
   },
+  computed: {
+    avatarUrl() {
+      if (this.discordAvatar && this.discordId) {
+        const isGif = this.discordAvatar.startsWith('a_');
+        const ext = isGif ? 'gif' : 'png';
+        return `https://cdn.discordapp.com/avatars/${this.discordId}/${this.discordAvatar}.${ext}`;
+      }
+      return 'https://cdn.discordapp.com/embed/avatars/0.png';
+    },
+  }, // <-- voilà la correction, computed est bien fermé
   methods: {
     handleFileUpload(event) {
       const file = event.target.files[0];
       if (file) {
-        this.uploadedFile = file;  // stocker le fichier sélectionné
+        this.uploadedFile = file;
         console.log('Fichier uploadé:', file.name);
       }
     },
 
     applySettings() {
-      // action légère avant envoi
       console.log('Apply clicked', {
         text: this.textInput,
         pseudo: this.showPseudo,
@@ -92,18 +113,16 @@ export default {
     },
 
     connectDiscord() {
-      // Placeholder: replace CLIENT_ID and REDIRECT_URI with your app values
       const clientId = '1368669199710425119';
       const redirectUri = encodeURIComponent('http://localhost:5173/callback');
       const scope = encodeURIComponent('identify email');
       const discordUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
-      // Open the OAuth URL in a new window/tab
-      window.open(discordUrl, '_blank');
+      window.open(discordUrl);
     },
 
     async submitToBackend() {
       try {
-        const url = 'https://localhost:7174/api/CeeBee'; // ou autre URL backend
+        const url = 'https://localhost:7174/api/CeeBee';
         const fd = new FormData();
 
         fd.append('textInput', this.textInput || '');
@@ -117,7 +136,6 @@ export default {
 
         const resp = await axios.post(url, fd, {
           headers: { 'Content-Type': 'multipart/form-data' }
-          // withCredentials: true // si besoin d’auth
         });
 
         console.log('Server response', resp.data);
@@ -132,27 +150,66 @@ export default {
 </script>
 
 
+
 <style scoped>
-.ceebee-root {
+body, html {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
+  margin: 0;
+  padding: 0;
 }
 
-.container {
+/* Conteneur global de la page */
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  margin-left: 200px;
+  padding-left: 100px;
+  width: 700px;
+  align-items: center;    /* centre verticalement */
+  justify-content: center;/* centre horizontalement */
+  transform: scale(1.6);
+}
+
+/* card-wrapper reste centré, padding-top retiré */
+.card-wrapper {
+  position: relative;
   max-width: 640px;
-  width: 94%;
+  width: 100%;
+}
+
+.user-info {
+  position: relative;
+  top: 0;
+  left: 200px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 10; /* Pour être au-dessus de la carte */
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 6px rgba(0,0,0,0.5);
+}
+
+.username {
+  color: white;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.container.card {
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
   padding: 20px 22px;
   border-radius: 14px;
   box-shadow: 10px 12px 30px rgba(0,0,0,0.45);
   color: #efeefe;
   border: 1px solid rgba(255,255,255,0.03);
-  /* ensure the .container.card element centers in its flex parent */
-  align-self: center;
-  margin: auto;
 }
 
 .card-header {

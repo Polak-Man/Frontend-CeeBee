@@ -1,46 +1,66 @@
 <template>
   <div>
-    <h2>Connecting...</h2>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
 import { setCookie } from '../utils/cookies';
 
 export default {
-  async mounted() {
-    // Récupérer le code OAuth dans l'URL
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-
-    if (code) {
-      console.log('OAuth code reçu:', code);
-      try {
-        // Send the code to backend to exchange it for tokens and fetch user info
-        // The backend should return user info (including a username)
-        const resp = await axios.post('/api/auth/discord/callback', { code });
-        const data = resp.data || {};
-
-        // Try several common fields for username
-        const username = data.username || data.discord_username || data.name || (data.user && data.user.username) || null;
-
-        if (username) {
-          // store username in cookie for 7 days
-          setCookie('discord_username', username, 7);
-          console.log('Saved discord_username cookie:', username);
-        } else {
-          console.warn('No username returned from backend, response:', data);
-        }
-      } catch (err) {
-        console.error('Error sending code to backend:', err);
-      }
-
-      // Redirect back to home after short delay so cookie is set
-      setTimeout(() => this.$router.push('/'), 800);
-    } else {
-      console.error('Aucun code OAuth trouvé');
+  watch: {
+    '$route'(to) {
+      this.handleCodeChange(to.query.code);
     }
   },
+  mounted() {
+    const code = this.$route.query.code;
+  console.log("Code OAuth reçu ou changé : ", code);
+  if (!code) {
+    console.warn("Code OAuth absent dans l'URL");
+    return;
+  }
+  // appelle la méthode qui envoie le code au backend
+  this.handleCodeChange(code);
+  },
+  methods: {
+    async handleCodeChange(code) {
+      console.log("Code OAuth reçu ou changé :", code);
+      if (!code) return;
+
+      try {
+        const response = await fetch('https://localhost:7174/api/CeeBee/discord/callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+
+        console.log('Status response:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Erreur backend:', errorText);
+        } else {
+          const data = await response.json();
+          console.log('Réponse backend:', data);
+
+          if (data.username && data.id && data.avatar) {
+            setCookie('discord_username', data.username, 7);
+            setCookie('discord_id', data.id, 7);
+            setCookie('discord_avatar', data.avatar, 7);
+            console.log('Cookies Discord stockés:', data.username, data.id, data.avatar);
+          } else {
+            console.warn('Réponse backend incomplète:', data);
+          }
+        }
+      } catch (err) {
+        console.error('Erreur requête POST:', err);
+      } finally {
+        setTimeout(() => {
+          if (this.$router) this.$router.push('/');
+          else window.location.href = '/';
+        }, 800);
+      }
+    }
+  }
 };
 </script>
