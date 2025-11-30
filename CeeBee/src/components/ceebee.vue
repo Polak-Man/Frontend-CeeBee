@@ -4,6 +4,7 @@
       <div class="user-info">
         <img :src="avatarUrl" alt="Avatar" class="avatar" />
         <span class="username">{{ discordUsername }}</span>
+        <button v-if="!discordUsername" class="btn btn-discord" @click="connectDiscord">Connecter à Discord</button>
       </div>
 
       <div class="container card">
@@ -75,6 +76,7 @@ export default {
       console.warn('Error reading discord cookie', err);
     }
   },
+  
   computed: {
     avatarUrl() {
       if (this.discordAvatar && this.discordId) {
@@ -92,7 +94,7 @@ export default {
         this.uploadedFile = file;
         console.log('Fichier uploadé:', file.name);
       }
-    },
+  },
 
     applySettings() {
       console.log('Apply clicked', {
@@ -127,6 +129,7 @@ export default {
 
         fd.append('textInput', this.textInput || '');
         fd.append('showPseudo', this.showPseudo ? 'true' : 'false');
+        fd.append('discordUsername', this.discordUsername || '');
         this.selectedNames.forEach(name => fd.append('selectedNames', name));
         if (this.durationSec != null) fd.append('durationSec', String(this.durationSec));
         if (this.durationMs != null) fd.append('durationMs', String(this.durationMs));
@@ -135,7 +138,8 @@ export default {
         }
 
         const resp = await axios.post(url, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { 'Content-Type': 'multipart/form-data' },
+          withCredentials: true
         });
 
         console.log('Server response', resp.data);
@@ -307,8 +311,6 @@ input[type="number"] {
   font-weight: 700;
   box-shadow: 0 8px 20px rgba(71,87,214,0.22);
   border: 1px solid rgba(255,255,255,0.04);
-  margin-bottom: 550px;
-  margin-right: 10px;
 }
 .btn-discord:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(71,87,214,0.28); }
 
